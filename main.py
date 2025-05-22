@@ -39,13 +39,46 @@ if len(Databases) == 0:
             st.rerun()
             
             
-else:
+else:    
+    database_add = st.button("Add new database")
+    if database_add:
+        with st.form("make_database_form"):
+            st.write("Type in the name of the database you want to create")
+            database_name = st.text_input("Database name")
+            st.write("Choose the embedding model for the database")
+            embedding_model = st.selectbox(
+                "Select the embedding model",
+                ["mxbai-embed-large", 
+                 "all-minilm", 
+                 "nomic-embed-text",
+                 "granite-embedding",
+                 "paraphrase-multilingual"],
+                index=0,
+                placeholder="xxxx...",
+            )
+            submitted = st.form_submit_button("Create database")
+            if submitted:
+                st.write("Creating database...")
+                print('debug 1')
+                
+                
+                client = chromadb.Client()
+                client = chromadb.PersistentClient(path=f'./data_{database_name}_{embedding_model}')
+                #collection = client.create_collection(name=collection_name)
+
+                print('debug 2')
+
+                st.success('Database created successfully!')
+                st.rerun()   
+    
+
     database_option = st.selectbox(
         "Select the database you want to use",
         Databases,
         index=None,
         placeholder="data_xxxx_xxxx...",
     )
+    # Add button to add a new database
     
 
     if database_option is not None:
