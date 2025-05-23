@@ -59,8 +59,8 @@ if database_option is not None:
     if invoke_or_update == 'Invoke Database':
         results = []
         collection_option = st.selectbox(
-            "Select the collection you want to use",
-            client.list_collections(),
+            "Select the collection you want to use",#change under here
+            [col.name for col in client.list_collections()],
             index=None,
             placeholder="xxxx...",
         )
@@ -117,7 +117,10 @@ if database_option is not None:
 
         else:
             col1, col2 = st.columns([2,1])
-            selected_collections = []
+            #selected_collections = []
+            print(client.list_collections())
+
+            existing_collections = [col.name for col in client.list_collections()]
 
             existing_collections = [col.name for col in client.list_collections()]
 
@@ -143,8 +146,9 @@ if database_option is not None:
 
                         else:
                             st.error("Collection already exists or invalid name.")
-
+                print('d 2')
             if len(selected_collections) > 0:
+                print('d 1')
                 with st.container(border = True):
                     upload_option = st.radio("Data Loading Options",['Sitemap','Page','PDF'], horizontal=True)
                     if upload_option == 'Sitemap':
