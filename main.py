@@ -122,7 +122,9 @@ if database_option is not None:
 
             existing_collections = [col.name for col in client.list_collections()]
 
-            with col1: 
+            existing_collections = [col.name for col in client.list_collections()]
+
+            with col1:
                 selected_collections = st.multiselect(
                     "Select existing collections:",
                     options=existing_collections,
@@ -162,18 +164,20 @@ if database_option is not None:
                                     # Load and split the documents
                                     docs = sitemap_loader.load_and_split()
                                     print("Page loader loaded and split\n\n")
+                                    if not docs:
+                                        st.error("No documents found in the sitemap.")
+                                    else:
+                                        for selected_collection in selected_collections:
 
-                                    for selected_collection in selected_collections:
+                                            # Initialize the vector store
+                                            vectore_store = Chroma.from_documents(
+                                                documents=docs, 
+                                                embedding=OllamaEmbeddings(model = database_option.split('_')[-1]), 
+                                                persist_directory=f'./{database_option}', 
+                                                collection_name=selected_collection
+                                            )
 
-                                        # Initialize the vector store
-                                        vectore_store = Chroma.from_documents(
-                                            documents=docs, 
-                                            embedding=OllamaEmbeddings(model = database_option.split('_')[-1]), 
-                                            persist_directory=f'./{database_option}', 
-                                            collection_name=selected_collection
-                                        )
-
-                                        print(f'Data Uploaded to Collection: \033[92m{selected_collection}\033[0m\n\n')
+                                            print(f'Data Uploaded to Collection: \033[92m{selected_collection}\033[0m\n\n')
 
                                 else:
                                     st.error("Please enter a valid Page URL.")
@@ -192,18 +196,20 @@ if database_option is not None:
                                     # Load and split the documents
                                     docs = page_loader.load_and_split()
                                     print("Page loader loaded and split\n\n")
+                                    if not docs:
+                                        st.error("Error with page loader.")
+                                    else:
+                                        for selected_collection in selected_collections:
 
-                                    for selected_collection in selected_collections:
+                                            # Initialize the vector store
+                                            vectore_store = Chroma.from_documents(
+                                                documents=docs, 
+                                                embedding=OllamaEmbeddings(model = database_option.split('_')[-1]), 
+                                                persist_directory=f'./{database_option}', 
+                                                collection_name=selected_collection
+                                            )
 
-                                        # Initialize the vector store
-                                        vectore_store = Chroma.from_documents(
-                                            documents=docs, 
-                                            embedding=OllamaEmbeddings(model = database_option.split('_')[-1]), 
-                                            persist_directory=f'./{database_option}', 
-                                            collection_name=selected_collection
-                                        )
-
-                                        print(f'Data Uploaded to Collection: \033[92m{selected_collection}\033[0m\n\n')
+                                            print(f'Data Uploaded to Collection: \033[92m{selected_collection}\033[0m\n\n')
 
                                 else:
                                     st.error("Please enter a valid Page URL.")
