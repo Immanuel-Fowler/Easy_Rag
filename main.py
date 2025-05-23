@@ -76,8 +76,14 @@ if database_option is not None:
 
                 with col2:
                     st.write("Number of results")
-                    kwargs = st.number_input("Number of results", min_value=1, max_value=10, value=3)
-                submitted = st.form_submit_button("Invoke")
+                    number_of_results = st.number_input("Number of results or Similarity Score", min_value=0, max_value=100, value=None)
+                    search_type = st.selectbox(
+                        "Select search type",
+                        options=["similarity_score_threshold", "mmr", "top_k"],
+                        index=0,
+                        help="Choose the search type for your query.",
+                    )
+                    submitted = st.form_submit_button("Invoke")
 
                 if submitted:
                     if query:
@@ -87,11 +93,24 @@ if database_option is not None:
                             embedding_function=OllamaEmbeddings(model = database_option.split('_')[-1]),
                             persist_directory=f'./{database_option}'
                         )
+                        if search_type == "similarity_score_threshold":
+                            retriever = vector_store.as_retriever(
+                                search_type="similarity_score_threshold",
+                                search_kwargs={"score_threshold": float(number_of_results)}
+                        )
+                        elif search_type == "mmr":
+                            retriever = vector_store.as_retriever(search_type="mmr")
+                        elif search_type == "top_k":
+                            retriever = vector_store.as_retriever(search_kwargs={"k": number_of_results})
+                        else:
+                            st.error("Invalid search type selected.")
+                            retriever = None
+                        #retriever = vector_store.as_retriever(search_kwargs={"k": number_of_results})
+                        #results = retriever.invoke(query)              
 
-                        retriever = vector_store.as_retriever(search_kwargs={"k": kwargs})
-                        results = retriever.invoke(query)              
-
-                        st.success('query succesful!')
+                        if retriever:
+                            results = retriever.invoke(query)
+                            st.success('query succesful!')
                                 #st.rerun()
                     else:
                         st.error('Collection not found')
