@@ -118,6 +118,7 @@ with st.form("query_form"):
         model = ChatOllama(model = "llama3.1")
 
         response_text = model.invoke(prompt).content
+        st.write("### Response")
         st.markdown(response_text)
 
         
