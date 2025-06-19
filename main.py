@@ -189,6 +189,49 @@ if database_option is not None:
             if len(selected_collections) > 0:
                 with st.container(border = True):
                     upload_option = st.radio("Data Loading Options",['Sitemap','Page','PDF'], horizontal=True)
+                    # New: Remove data by source UI
+                    st.markdown("---")
+                    st.subheader("Remove Data by Source")
+                    remove_collection = st.selectbox(
+                        "Select collection to remove data from:",
+                        options=selected_collections,
+                        format_func=lambda name: f"{name} ({collection_embedding_map.get(name, 'No embedding')})",
+                        index=0 if selected_collections else None,
+                        placeholder="Select collection...",
+                    )
+                    unique_sources = []
+                    if remove_collection:
+                        try:
+                            collection = client.get_collection(remove_collection)
+                            # Get all sources in the collection
+                            results = collection.get(include=["metadatas"], limit=10000)
+                            metadatas = results.get("metadatas", [])
+                            sources = [meta.get("source") for meta in metadatas if meta and meta.get("source")]
+                            unique_sources = sorted(list(set(sources)))
+                        except Exception as e:
+                            st.error(f"Error fetching sources: {e}")
+                    source_to_remove = st.selectbox(
+                        "Select source to remove:",
+                        options=unique_sources,
+                        index=0 if unique_sources else None,
+                        placeholder="Select source...",
+                    )
+                    if st.button("Remove Data by Source"):
+                        if remove_collection and source_to_remove:
+                            try:
+                                collection = client.get_collection(remove_collection)
+                                results = collection.get(where={"source": {"$eq": source_to_remove}}, include=["ids"])
+                                ids_to_delete = results.get("ids", [])
+                                if ids_to_delete:
+                                    collection.delete(ids=ids_to_delete)
+                                    st.success(f"Removed {len(ids_to_delete)} documents from '{remove_collection}' with source '{source_to_remove}'.")
+                                else:
+                                    st.info(f"No documents found in '{remove_collection}' with source '{source_to_remove}'.")
+                            except Exception as e:
+                                st.error(f"Error removing data: {e}")
+                        else:
+                            st.error("Please select a collection and a source to remove.")
+                    st.markdown("---")
                     if upload_option == 'Sitemap':
                         with st.form("database_sitemap_form"):
                             sitemap_url = st.text_input("Sitemap URL")
