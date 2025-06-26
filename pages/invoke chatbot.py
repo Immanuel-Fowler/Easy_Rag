@@ -1,8 +1,4 @@
 import streamlit as st
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
-from pydantic import BaseModel
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_ollama import ChatOllama
@@ -10,116 +6,134 @@ import os
 import chromadb
 from streamlit_option_menu import option_menu
 
-st.set_page_config(initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="collapsed")
 
-PROMPT_TEMPLATE = """
-Answer the question based only on the following context:
+# Sidebar for database/collection selection
+with st.sidebar:
+    st.title("🔎 RAG Chatbot")
+    Databases = []
+    for entry in os.listdir('./'):
+        full_path = os.path.join('./', entry)
+        if os.path.isdir(full_path) and 'data_' in entry:
+            Databases.append(entry)
 
-{context}
-
----
-
-Answer the question based on the above context: {question}
-"""
-
-embedding_function = None
-
-client = None
-collections = []
-Databases = []
-for entry in os.listdir('./'):
-    full_path = os.path.join('./', entry)
-    if os.path.isdir(full_path) and 'data_' in entry:
-        Databases.append(entry)
-
-chosen_database = st.selectbox(
-        "Select the database you want to use",
+    chosen_database = st.selectbox(
+        "Select database",
         Databases,
         index=None,
         placeholder="data_xxxx_xxxx...",
     )
 
-if chosen_database is not None:
-    client = chromadb.PersistentClient(path=f'./{chosen_database}')
-    embedding_function = OllamaEmbeddings(model = chosen_database.split('_')[-1])
-    st.success('Database loaded successfully!')
+    if chosen_database is not None:
+        client = chromadb.PersistentClient(path=f'./{chosen_database}')
+        embedding_function = OllamaEmbeddings(model=chosen_database.split('_')[-1])
+        collections = [col.name for col in client.list_collections()]
+    else:
+        client = None
+        embedding_function = None
+        collections = []
 
-chosen_collection = st.selectbox(
-        "Select the collection you want to use",
-        [col.name for col in client.list_collections()] if chosen_database is not None else [],
+    chosen_collection = st.selectbox(
+        "Select collection",
+        collections,
         index=None,
-        placeholder="data_xxxx_xxxx...",
+        placeholder="xxxx...",
     )
-mmr_sst_topk =  option_menu("Chose your rag search type", 
-                            ["similarity score", "mmr","top k"],
-                            icons=["1-square-fill", "2-square-fill", "3-square-fill"], 
-                            menu_icon="search", 
-                            default_index=1, 
-                            orientation="horizontal",)
-with st.form("query_form"):
-    
-    query = st.text_input("Enter your query here", "What is the meaning of life?")
+
+    mmr_sst_topk = option_menu(
+        "RAG search type",
+        ["similarity score", "mmr", "top k"],
+        icons=["1-square-fill", "2-square-fill", "3-square-fill"],
+        menu_icon="search",
+        default_index=1,
+        orientation="horizontal",
+    )
 
     if mmr_sst_topk == "similarity score":
         search_number_input = st.number_input(
-            "Enter the simliarity score threshold",
+            "Similarity score threshold",
             min_value=0.00,
             max_value=100.00,
-            value=None,
+            value=0.0,
             step=0.25,
-            help="Choose the the minimum similarity score of the retrieved results",
+            help="Minimum similarity score of the retrieved results",
             format="%.2f"
         )
     elif mmr_sst_topk == "top k":
         search_number_input = st.number_input(
-            "Enter the number of top results to retrieve",
+            "Number of top results",
             min_value=1,
             max_value=100,
-            value=None,
+            value=3,
             step=1,
-            help="Choose the number of top results to retrieve",
+            help="Number of top results to retrieve",
         )
-    
+    else:
+        search_number_input = None
 
-    submitted = st.form_submit_button("Submit")
+st.title("💬 Chatbot")
 
-    if submitted and chosen_database is not None and chosen_collection is not None:
-        st.success("Query submitted!")
-        vector_store = Chroma(persist_directory=f'./{chosen_database}', 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat history using st.chat_message
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input at the bottom
+if prompt := st.chat_input("Ask me anything..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Only respond if database and collection are selected
+    if chosen_database and chosen_collection:
+        with st.chat_message("assistant"):
+            with st.spinner("Bot is typing..."):
+                # RAG retrieval
+                vector_store = Chroma(
+                    persist_directory=f'./{chosen_database}',
                     embedding_function=embedding_function,
-                    collection_name=f'{chosen_collection}')
-        if mmr_sst_topk == "similarity score":
-                            retriever = vector_store.as_retriever(
-                                search_type="similarity_score_threshold",
-                                search_kwargs={"score_threshold": float(search_number_input)}
-                        )
-        elif mmr_sst_topk == "mmr":
-            retriever = vector_store.as_retriever(search_type="mmr")
-        elif mmr_sst_topk == "top k":
-            retriever = vector_store.as_retriever(search_kwargs={"k": search_number_input})
-        else:
-            st.error("Invalid search type selected.")
-            retriever = None
+                    collection_name=f'{chosen_collection}'
+                )
+                if mmr_sst_topk == "similarity score":
+                    retriever = vector_store.as_retriever(
+                        search_type="similarity_score_threshold",
+                        search_kwargs={"score_threshold": float(search_number_input)}
+                    )
+                elif mmr_sst_topk == "mmr":
+                    retriever = vector_store.as_retriever(search_type="mmr")
+                elif mmr_sst_topk == "top k":
+                    retriever = vector_store.as_retriever(search_kwargs={"k": search_number_input})
+                else:
+                    retriever = None
 
-        results = retriever.invoke(query)
+                PROMPT_TEMPLATE = """
+                Answer the question based only on the following context:
 
-        if len(results) == 0:
-            st.error(f"Unable to find matching results.")
+                {context}
 
-        context_text = ""
+                ---
 
-        for result in results:
-            context_text += result.page_content + "\n\n---\n\n"
+                Answer the question based on the above context: {question}
+                """
 
-        prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-        prompt = prompt_template.format(context=context_text, question=query)
-        print(prompt)
-        
-        model = ChatOllama(model = "llama3.1")
-
-        response_text = model.invoke(prompt).content
-        st.write("### Response")
-        st.markdown(response_text)
-
-        
-
+                if retriever:
+                    results = retriever.invoke(prompt)
+                    if not results:
+                        bot_response = "Sorry, I couldn't find any relevant information."
+                    else:
+                        context_text = "\n\n---\n\n".join([r.page_content for r in results])
+                        prompt_text = PROMPT_TEMPLATE.format(context=context_text, question=prompt)
+                        model = ChatOllama(model="llama3")
+                        # Streaming not supported, so just show the response
+                        bot_response = model.invoke(prompt_text).content
+                else:
+                    bot_response = "Sorry, something went wrong with the retrieval."
+                st.markdown(bot_response)
+        st.session_state.messages.append({"role": "assistant", "content": bot_response})
+    else:
+        with st.chat_message("assistant"):
+            st.markdown("Please select a database and collection to start chatting.")
+        st.session_state.messages.append({"role": "assistant", "content": "Please select a database and collection to start chatting."})
