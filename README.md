@@ -77,10 +77,3 @@ pages/
 - Embedding models are managed per collection.
 - Data removal is supported by source.
 
-## License
-
-MIT License
-
----
-
-*This project is for educational and prototyping purposes. Contributions welcome!*
