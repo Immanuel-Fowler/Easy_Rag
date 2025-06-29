@@ -9,8 +9,8 @@ from streamlit_option_menu import option_menu
 st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="collapsed")
 
 # Sidebar for database/collection selection
-with st.sidebar:
-    st.title("🔎 RAG Chatbot")
+with st.expander("**Chatbot Parameters**"):
+    #st.title("🔎 RAG Chatbot")
     Databases = []
     for entry in os.listdir('./'):
         full_path = os.path.join('./', entry)

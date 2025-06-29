@@ -7,10 +7,7 @@ from barfi.flow.streamlit import st_flow
 data_block_local = Block(name="Local Data Source")
 data_block_local.add_output(name="Output")
 data_block_local.add_option(
-    name="Source Path", type="input", value="Enter Path to Data Source"
-)
-data_block_local.add_option(
-    name="Source Type", type="select", items=["sitemap","url", "file(Only PDF's)"]
+    name="Local Source Path", type="input", value = ""
 )
 
 #Remote Data Source Block

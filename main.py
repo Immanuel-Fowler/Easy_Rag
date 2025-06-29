@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 Databases = [name for name in os.listdir(current_dir) if os.path.isdir(os.path.join(current_dir, name)) and 'data_' in name]
 
 
-with st.container():
+with st.expander("**Create a new database**"):
     with st.form("make_database_form"):
         st.write("Type in the name of the database you want to create")
         database_name = st.text_input("Database name")
@@ -26,7 +26,7 @@ with st.container():
             st.write("Creating database...")
             client = chromadb.Client()
             # Use a default embedding model for path, but this is not used for collection anymore
-            client =  chromadb.PersistentClient(path=f'./data_{database_name}_default')
+            client =  chromadb.PersistentClient(path=f'./data_{database_name}')
             st.success('Database created successfully!')
             st.rerun()
 
@@ -166,26 +166,28 @@ if database_option is not None:
                     help="Choose one or more collections from the list."
                 )
             with col2:
-                with st.form("add_new_collection_form"):
-                    st.write("Or create a new collection")
-                    new_collection = st.text_input("New collection name")
-                    new_collection_embedding = st.selectbox(
-                        "Select embedding model for this collection",
-                        ["mxbai-embed-large", "all-minilm", "nomic-embed-text", "granite-embedding", "paraphrase-multilingual"],
-                        index=0,
-                        placeholder="xxxx...",
-                    )
-                    submitted = st.form_submit_button("Create collection")
-                    if submitted:
-                        if new_collection and new_collection_embedding and new_collection not in existing_collections:
-                            client.create_collection(name=new_collection)
-                            collection_embedding_map = get_collection_embedding_map(db_path)
-                            collection_embedding_map[new_collection] = new_collection_embedding
-                            save_collection_embedding_map(db_path, collection_embedding_map)
-                            st.success('Collection created successfully!')
-                            st.rerun()
-                        else:
-                            st.error("Collection already exists or invalid name.")
+                with st.popover("Create New Collection",help="Click here to create a new collection"):
+                    with st.form("add_new_collection_form"):
+                        st.write("Or create a new collection")
+                        new_collection = st.text_input("New collection name")
+                        new_collection_embedding = st.selectbox(
+                            "Select embedding model for this collection",
+                            ["mxbai-embed-large", "all-minilm", "nomic-embed-text", "granite-embedding", "paraphrase-multilingual"],
+                            index=0,
+                            placeholder="xxxx...",
+                        )
+                        submitted = st.form_submit_button("Create collection")
+                        if submitted:
+                            new_collection = new_collection.replace(" ","_")
+                            if new_collection and new_collection_embedding and new_collection not in existing_collections:
+                                client.create_collection(name=new_collection)
+                                collection_embedding_map = get_collection_embedding_map(db_path)
+                                collection_embedding_map[new_collection] = new_collection_embedding
+                                save_collection_embedding_map(db_path, collection_embedding_map)
+                                st.success('Collection created successfully!')
+                                st.rerun()
+                            else:
+                                st.error("Collection already exists or invalid name.")
             if len(selected_collections) > 0:
                 with st.container(border = True):
                     upload_option = st.radio("Data Loading Options",['Sitemap','Page','PDF'], horizontal=True)
