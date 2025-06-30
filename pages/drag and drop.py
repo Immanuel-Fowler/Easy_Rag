@@ -2,19 +2,22 @@
 import streamlit as st
 from barfi.flow import Block, SchemaManager, ComputeEngine
 from barfi.flow.streamlit import st_flow
+import os
+
+st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="collapsed")
 
 if st.button("❓ Help", help="Go to help page"):
     st.switch_page("pages/Help.py")
-    
+
 #Local Data Source Block
-data_block_local = Block(name="Local Data Source")
+data_block_local = Block(name="Local Data Source Block")
 data_block_local.add_output(name="Output")
 data_block_local.add_option(
     name="Local Source Path", type="input", value = ""
 )
 
 #Remote Data Source Block
-data_block_remote = Block(name="Remote Data Source")
+data_block_remote = Block(name="Remote Data Source Block")
 data_block_remote.add_output(name="Output")
 data_block_remote.add_option(
     name="Source Path", type="input", value="Enter Path to Data Source"
@@ -24,7 +27,7 @@ data_block_remote.add_option(
 )
 
 # RAG Block
-rag_block = Block(name="RAG")
+rag_block = Block(name="RAG Block")
 rag_block.add_option(
     name="Score Threshold",
     value = None, 
@@ -38,6 +41,11 @@ rag_block.add_option(
     type = "integer",
     min = 0,
     max = 100
+)
+rag_block.add_option(
+    name="Large Language Model",
+    value = "",
+    type = "input",
 )
 rag_block.add_input(
     name="Input"
@@ -57,18 +65,19 @@ rag_block.add_option(
     type = "input",
 )
 
-#LLM With Prompt Block
-llm_w_prompt_block = Block(name="LLM With Prompt")
-llm_w_prompt_block.add_option(
-    name="Large Language Model",
-    value = "",
-    type = "input",
-)
-llm_w_prompt_block.add_input(
+#log Output Block 
+log_output_block = Block(name="Log Output")
+log_output_block.add_input(
     name="Input"
 )
-base_blocks=[llm_w_prompt_block,data_block_local,data_block_remote,rag_block]
+base_blocks=[log_output_block,data_block_local,data_block_remote,rag_block]
+schema_manager = SchemaManager()
+
+if st.button("load schema"):
+    loaded_schema = schema_manager.load_schema('schemas.barfi')
+    barfi_result = st_flow(base_blocks, schema=loaded_schema)
+
 barfi_result = st_flow(base_blocks)
- 
-# 05: You can view the schema here
+
+# View the schema/result
 st.write(barfi_result)

@@ -7,6 +7,8 @@ from langchain_ollama import OllamaEmbeddings
 from streamlit_option_menu import option_menu
 from langchain_community.document_loaders import WebBaseLoader, SitemapLoader
 import time
+from langchain_community.document_loaders import PyPDFLoader
+import tempfile
 
 def get_collection_embedding_map(db_path):
     mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
@@ -290,9 +292,6 @@ if database_option is not None:
                             submitted = st.form_submit_button("Submit")
                             if submitted:
                                 if pdf_file:
-                                    from langchain_community.document_loaders import PyPDFLoader
-                                    import tempfile
-
                                     # Save uploaded PDF to a temporary file
                                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                                         tmp_file.write(pdf_file.read())
