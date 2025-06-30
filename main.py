@@ -7,40 +7,8 @@ from langchain_ollama import OllamaEmbeddings
 from streamlit_option_menu import option_menu
 from langchain_community.document_loaders import WebBaseLoader, SitemapLoader
 import time
-
-st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
-if st.button("❓ Help", help="Go to help page"):
-    st.switch_page("pages/Help.py")
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-Databases = [name for name in os.listdir(current_dir) if os.path.isdir(os.path.join(current_dir, name)) and 'data_' in name]
-
-
-with st.container():
-    with st.form("make_database_form"):
-        st.write("Type in the name of the database you want to create")
-        database_name = st.text_input("Database name")
-        # Embedding model selection removed from database creation
-        submitted = st.form_submit_button("Create database")
-        if submitted:
-            st.write("Creating database...")
-            client = chromadb.Client()
-            # Use a default embedding model for path, but this is not used for collection anymore
-            client =  chromadb.PersistentClient(path=f'./data_{database_name}_default')
-            st.success('Database created successfully!')
-            st.rerun()
-
-    
-    
-with st.container(border = True):
-    database_option = st.selectbox(
-        "Select the database you want to use",
-        Databases,
-        index=None,
-        placeholder="data_xxxx_xxxx...",
-    )
-
-# Helper functions for collection-embedding mapping
+from langchain_community.document_loaders import PyPDFLoader
+import tempfile
 
 def get_collection_embedding_map(db_path):
     mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
@@ -53,6 +21,40 @@ def save_collection_embedding_map(db_path, mapping):
     mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
     with open(mapping_path, 'w') as f:
         json.dump(mapping, f)
+
+
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
+
+if st.button("❓ Help", help="Go to help page"):
+    st.switch_page("pages/Help.py")
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+Databases = [name for name in os.listdir(current_dir) if os.path.isdir(os.path.join(current_dir, name)) and 'data_' in name]
+
+
+with st.expander("**Create a new database**"):
+    with st.form("make_database_form"):
+        st.write("Type in the name of the database you want to create")
+        database_name = st.text_input("Database name")
+        # Embedding model selection removed from database creation
+        submitted = st.form_submit_button("Create database")
+        if submitted:
+            st.write("Creating database...")
+            client = chromadb.Client()
+            # Use a default embedding model for path, but this is not used for collection anymore
+            client =  chromadb.PersistentClient(path=f'./data_{database_name}')
+            st.success('Database created successfully!')
+            st.rerun()
+
+    
+    
+with st.container(border = True):
+    database_option = st.selectbox(
+        "Select the database you want to use",
+        Databases,
+        index=None,
+        placeholder="data_xxxx_xxxx...",
+    )
 
 if database_option is not None:
     client = chromadb.PersistentClient(path=f'{database_option}')
@@ -166,32 +168,30 @@ if database_option is not None:
                     help="Choose one or more collections from the list."
                 )
             with col2:
-                with st.form("add_new_collection_form"):
-                    st.write("Or create a new collection")
-                    new_collection = st.text_input("New collection name")
-                    new_collection_embedding = st.selectbox(
-                        "Select embedding model for this collection",
-                        ["mxbai-embed-large", "all-minilm", "nomic-embed-text", "granite-embedding", "paraphrase-multilingual"],
-                        index=0,
-                        placeholder="xxxx...",
-                    )
-                    submitted = st.form_submit_button("Create collection")
-                    if submitted:
-                        if new_collection and new_collection_embedding and new_collection not in existing_collections:
-                            client.create_collection(name=new_collection)
-                            collection_embedding_map = get_collection_embedding_map(db_path)
-                            collection_embedding_map[new_collection] = new_collection_embedding
-                            save_collection_embedding_map(db_path, collection_embedding_map)
-                            st.success('Collection created successfully!')
-                            st.rerun()
-                        else:
-                            st.error("Collection already exists or invalid name.")
-            if len(selected_collections) > 0:
-                with st.container(border = True):
-                    upload_option = st.radio("Data Loading Options",['Sitemap','Page','PDF'], horizontal=True)
-                    # New: Remove data by source UI
-                    st.markdown("---")
-                    st.subheader("Remove Data by Source")
+                with st.popover("Create New Collection",help="Click here to create a new collection"):
+                    with st.form("add_new_collection_form"):
+                        st.write("Or create a new collection")
+                        new_collection = st.text_input("New collection name")
+                        new_collection_embedding = st.selectbox(
+                            "Select embedding model for this collection",
+                            ["mxbai-embed-large", "all-minilm", "nomic-embed-text", "granite-embedding", "paraphrase-multilingual"],
+                            index=0,
+                            placeholder="xxxx...",
+                        )
+                        submitted = st.form_submit_button("Create collection")
+                        if submitted:
+                            new_collection = new_collection.replace(" ","_")
+                            if new_collection and new_collection_embedding and new_collection not in existing_collections:
+                                client.create_collection(name=new_collection)
+                                collection_embedding_map = get_collection_embedding_map(db_path)
+                                collection_embedding_map[new_collection] = new_collection_embedding
+                                save_collection_embedding_map(db_path, collection_embedding_map)
+                                st.success('Collection created successfully!')
+                                st.rerun()
+                            else:
+                                st.error("Collection already exists or invalid name.")
+                with st.popover("Remove Data From Collection"):
+                    st.write("Remove Data by Source")
                     remove_collection = st.selectbox(
                         "Select collection to remove data from:",
                         options=selected_collections,
@@ -231,7 +231,11 @@ if database_option is not None:
                                 st.error(f"Error removing data: {e}")
                         else:
                             st.error("Please select a collection and a source to remove.")
-                    st.markdown("---")
+
+            if len(selected_collections) > 0:
+                with st.container(border = True):
+
+                    upload_option = st.radio("Data Uploading Options",['Sitemap','Page','PDF'], horizontal=True)
                     if upload_option == 'Sitemap':
                         with st.form("database_sitemap_form"):
                             sitemap_url = st.text_input("Sitemap URL")
@@ -283,6 +287,47 @@ if database_option is not None:
                                 else:
                                     st.error("Please enter a valid Page URL.")
                     elif upload_option == 'PDF':
-                        st.write("coming soon")
+                        with st.form("database_pdf_form"):
+                            pdf_file = st.file_uploader("Upload PDF", type=["pdf"])
+                            submitted = st.form_submit_button("Submit")
+                            if submitted:
+                                if pdf_file:
+                                    # Save uploaded PDF to a temporary file
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                                        tmp_file.write(pdf_file.read())
+                                        tmp_pdf_path = tmp_file.name
+
+                                    try:
+                                        pdf_loader = PyPDFLoader(tmp_pdf_path)
+                                        docs = pdf_loader.load_and_split()
+                                        if not docs:
+                                            st.error("No documents found in the PDF.")
+                                        else:
+                                            # Optionally add source metadata for each doc
+                                            for doc in docs:
+                                                if not doc.metadata:
+                                                    doc.metadata = {}
+                                                doc.metadata["source"] = pdf_file.name
+                                            for selected_collection in selected_collections:
+                                                embedding_model = collection_embedding_map.get(selected_collection)
+                                                if not embedding_model:
+                                                    st.error(f"No embedding model found for collection {selected_collection}.")
+                                                    continue
+                                                vector_store = Chroma.from_documents(
+                                                    documents=docs,
+                                                    embedding=OllamaEmbeddings(model=embedding_model),
+                                                    persist_directory=f'./{database_option}',
+                                                    collection_name=selected_collection
+                                                )
+                                            st.success("PDF uploaded and processed successfully!")
+                                    except Exception as e:
+                                        st.error(f"Error processing PDF: {e}")
+                                    finally:
+                                        try:
+                                            os.remove(tmp_pdf_path)
+                                        except Exception:
+                                            pass
+                                else:
+                                    st.error("Please upload a PDF file.")
                     else:
-                        st.write("coming soon")
+                        st.write("I have no idea how you got here, but hey you made it!")
