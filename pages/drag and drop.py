@@ -3,6 +3,9 @@ import streamlit as st
 from barfi.flow import Block, SchemaManager, ComputeEngine
 from barfi.flow.streamlit import st_flow
 
+if st.button("❓ Help", help="Go to help page"):
+    st.switch_page("pages/Help.py")
+    
 #Local Data Source Block
 data_block_local = Block(name="Local Data Source")
 data_block_local.add_output(name="Output")

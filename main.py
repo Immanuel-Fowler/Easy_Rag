@@ -8,7 +8,21 @@ from streamlit_option_menu import option_menu
 from langchain_community.document_loaders import WebBaseLoader, SitemapLoader
 import time
 
+def get_collection_embedding_map(db_path):
+    mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
+    if os.path.exists(mapping_path):
+        with open(mapping_path, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_collection_embedding_map(db_path, mapping):
+    mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
+    with open(mapping_path, 'w') as f:
+        json.dump(mapping, f)
+
+
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
+
 if st.button("❓ Help", help="Go to help page"):
     st.switch_page("pages/Help.py")
 
@@ -39,20 +53,6 @@ with st.container(border = True):
         index=None,
         placeholder="data_xxxx_xxxx...",
     )
-
-# Helper functions for collection-embedding mapping
-
-def get_collection_embedding_map(db_path):
-    mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
-    if os.path.exists(mapping_path):
-        with open(mapping_path, 'r') as f:
-            return json.load(f)
-    return {}
-
-def save_collection_embedding_map(db_path, mapping):
-    mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
-    with open(mapping_path, 'w') as f:
-        json.dump(mapping, f)
 
 if database_option is not None:
     client = chromadb.PersistentClient(path=f'{database_option}')
@@ -188,12 +188,8 @@ if database_option is not None:
                                 st.rerun()
                             else:
                                 st.error("Collection already exists or invalid name.")
-            if len(selected_collections) > 0:
-                with st.container(border = True):
-                    upload_option = st.radio("Data Loading Options",['Sitemap','Page','PDF'], horizontal=True)
-                    # New: Remove data by source UI
-                    st.markdown("---")
-                    st.subheader("Remove Data by Source")
+                with st.popover("Remove Data From Collection"):
+                    st.write("Remove Data by Source")
                     remove_collection = st.selectbox(
                         "Select collection to remove data from:",
                         options=selected_collections,
@@ -233,7 +229,11 @@ if database_option is not None:
                                 st.error(f"Error removing data: {e}")
                         else:
                             st.error("Please select a collection and a source to remove.")
-                    st.markdown("---")
+
+            if len(selected_collections) > 0:
+                with st.container(border = True):
+
+                    upload_option = st.radio("Data Uploading Options",['Sitemap','Page','PDF'], horizontal=True)
                     if upload_option == 'Sitemap':
                         with st.form("database_sitemap_form"):
                             sitemap_url = st.text_input("Sitemap URL")
@@ -285,6 +285,50 @@ if database_option is not None:
                                 else:
                                     st.error("Please enter a valid Page URL.")
                     elif upload_option == 'PDF':
-                        st.write("coming soon")
+                        with st.form("database_pdf_form"):
+                            pdf_file = st.file_uploader("Upload PDF", type=["pdf"])
+                            submitted = st.form_submit_button("Submit")
+                            if submitted:
+                                if pdf_file:
+                                    from langchain_community.document_loaders import PyPDFLoader
+                                    import tempfile
+
+                                    # Save uploaded PDF to a temporary file
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                                        tmp_file.write(pdf_file.read())
+                                        tmp_pdf_path = tmp_file.name
+
+                                    try:
+                                        pdf_loader = PyPDFLoader(tmp_pdf_path)
+                                        docs = pdf_loader.load_and_split()
+                                        if not docs:
+                                            st.error("No documents found in the PDF.")
+                                        else:
+                                            # Optionally add source metadata for each doc
+                                            for doc in docs:
+                                                if not doc.metadata:
+                                                    doc.metadata = {}
+                                                doc.metadata["source"] = pdf_file.name
+                                            for selected_collection in selected_collections:
+                                                embedding_model = collection_embedding_map.get(selected_collection)
+                                                if not embedding_model:
+                                                    st.error(f"No embedding model found for collection {selected_collection}.")
+                                                    continue
+                                                vector_store = Chroma.from_documents(
+                                                    documents=docs,
+                                                    embedding=OllamaEmbeddings(model=embedding_model),
+                                                    persist_directory=f'./{database_option}',
+                                                    collection_name=selected_collection
+                                                )
+                                            st.success("PDF uploaded and processed successfully!")
+                                    except Exception as e:
+                                        st.error(f"Error processing PDF: {e}")
+                                    finally:
+                                        try:
+                                            os.remove(tmp_pdf_path)
+                                        except Exception:
+                                            pass
+                                else:
+                                    st.error("Please upload a PDF file.")
                     else:
-                        st.write("coming soon")
+                        st.write("I have no idea how you got here, but hey you made it!")

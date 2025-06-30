@@ -5,9 +5,20 @@ from langchain_ollama import ChatOllama
 import os
 import chromadb
 from streamlit_option_menu import option_menu
+import json
+
+def get_collection_embedding_map(db_path):
+    mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
+    if os.path.exists(mapping_path):
+        with open(mapping_path, 'r') as f:
+            return json.load(f)
+    return {}
 
 st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="collapsed")
 
+if st.button("❓ Help", help="Go to help page"):
+    st.switch_page("pages/Help.py")
+    
 # Sidebar for database/collection selection
 with st.expander("**Chatbot Parameters**"):
     #st.title("🔎 RAG Chatbot")
@@ -26,7 +37,7 @@ with st.expander("**Chatbot Parameters**"):
 
     if chosen_database is not None:
         client = chromadb.PersistentClient(path=f'./{chosen_database}')
-        embedding_function = OllamaEmbeddings(model=chosen_database.split('_')[-1])
+        collection_embedding_map = get_collection_embedding_map(f'./{chosen_database}')
         collections = [col.name for col in client.list_collections()]
     else:
         client = None
@@ -39,6 +50,9 @@ with st.expander("**Chatbot Parameters**"):
         index=None,
         placeholder="xxxx...",
     )
+
+    if chosen_collection is not None:
+        embedding_function = OllamaEmbeddings(model=collection_embedding_map.get(chosen_collection))
 
     mmr_sst_topk = option_menu(
         "RAG search type",
@@ -126,7 +140,7 @@ if prompt := st.chat_input("Ask me anything..."):
                     else:
                         context_text = "\n\n---\n\n".join([r.page_content for r in results])
                         prompt_text = PROMPT_TEMPLATE.format(context=context_text, question=prompt)
-                        model = ChatOllama(model="llama3")
+                        model = ChatOllama(model="llama3.1")
                         # Streaming not supported, so just show the response
                         bot_response = model.invoke(prompt_text).content
                 else:
@@ -137,3 +151,7 @@ if prompt := st.chat_input("Ask me anything..."):
         with st.chat_message("assistant"):
             st.markdown("Please select a database and collection to start chatting.")
         st.session_state.messages.append({"role": "assistant", "content": "Please select a database and collection to start chatting."})
+
+if prompt is not None:
+    with st.expander("View Full Prompt"):
+        st.write(prompt_text)
