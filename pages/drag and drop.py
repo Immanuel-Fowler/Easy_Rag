@@ -77,7 +77,7 @@ log_output_block.add_input(
 base_blocks=[log_output_block,data_block_local,data_block_remote,rag_block]
 
 barfi_result = st_flow(base_blocks)
-
+print(barfi_result)
 schema_manager = SchemaManager()
 
 with st.expander("Schema Management"):
@@ -99,10 +99,14 @@ with st.expander("Schema Management"):
                 st.warning(f"Schema '{schema_name}' already exists. Please choose a different name.")
 
     elif load_or_save == "Load Schema":
+
         schema_names = schema_manager.schema_names
+
         if schema_names:
             schema_name = st.selectbox("Select Schema to Load", schema_names)
+
             if st.button("Load Schema"):
+
                 barfi_result = schema_manager.load_schema(schema_name)
                 st.success(f"Schema '{schema_name}' loaded successfully.")
         else:
