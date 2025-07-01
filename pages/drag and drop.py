@@ -9,6 +9,8 @@ st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="c
 if st.button("❓ Help", help="Go to help page"):
     st.switch_page("pages/Help.py")
 
+st.header("Feature Still Being Developed")
+st.write("***Not Yet Ready For Use***")
 #Local Data Source Block
 data_block_local = Block(name="Local Data Source Block")
 data_block_local.add_output(name="Output")

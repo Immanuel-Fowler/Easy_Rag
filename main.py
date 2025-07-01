@@ -234,8 +234,13 @@ if database_option is not None:
 
             if len(selected_collections) > 0:
                 with st.container(border = True):
-
-                    upload_option = st.radio("Data Uploading Options",['Sitemap','Page','PDF'], horizontal=True)
+                    col1, col2 = st.columns([2,1])
+                    with col1:
+                        upload_option = st.radio("Data Uploading Options",['Sitemap','Page','PDF'], horizontal=True)
+                    with col2:
+                        with st.popover('Chunking And Splitting Options'):
+                            st.write("***Not Supported Yet***")
+                    
                     if upload_option == 'Sitemap':
                         with st.form("database_sitemap_form"):
                             sitemap_url = st.text_input("Sitemap URL")
