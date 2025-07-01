@@ -9,6 +9,7 @@ from langchain_community.document_loaders import WebBaseLoader, SitemapLoader
 import time
 from langchain_community.document_loaders import PyPDFLoader
 import tempfile
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 def get_collection_embedding_map(db_path):
     mapping_path = os.path.join(db_path, 'collection_embedding_map.json')
@@ -94,6 +95,7 @@ if database_option is not None:
                     with col2:
                         st.write("Number of results")
                         number_of_results = st.number_input("Number of results or Similarity Score", min_value=0, max_value=100, value=None)
+                        
                         search_type = st.selectbox(
                             "Select search type",
                             options=["similarity_score_threshold", "mmr", "top_k"],
@@ -239,7 +241,8 @@ if database_option is not None:
                         upload_option = st.radio("Data Uploading Options",['Sitemap','Page','PDF'], horizontal=True)
                     with col2:
                         with st.popover('Chunking And Splitting Options'):
-                            st.write("***Not Supported Yet***")
+                            Chunk_size = st.number_input("Chunk size", min_value=0, max_value=10000, value=500, help="Size of each text chunk in characters.")
+                            Chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=10000, value=50, help="Number of characters to overlap between chunks.")
                     
                     if upload_option == 'Sitemap':
                         with st.form("database_sitemap_form"):
@@ -248,7 +251,11 @@ if database_option is not None:
                             if submitted:
                                 if sitemap_url:
                                     sitemap_loader = SitemapLoader(web_path=sitemap_url)
-                                    docs = sitemap_loader.load_and_split()
+                                    Chosen_Parameter = RecursiveCharacterTextSplitter(
+                                        chunk_size=Chunk_size,
+                                        chunk_overlap=Chunk_overlap
+                                    )
+                                    docs = sitemap_loader.load_and_split(text_splitter=Chosen_Parameter)
                                     if not docs:
                                         st.error("No documents found in the sitemap.")
                                     else:
@@ -273,7 +280,11 @@ if database_option is not None:
                             if submitted:
                                 if page_url:
                                     page_loader = WebBaseLoader(web_path=page_url)
-                                    docs = page_loader.load_and_split()
+                                    Chosen_Parameter = RecursiveCharacterTextSplitter(
+                                        chunk_size=Chunk_size,
+                                        chunk_overlap=Chunk_overlap
+                                    )
+                                    docs = page_loader.load_and_split(text_splitter=Chosen_Parameter)
                                     if not docs:
                                         st.error("Error with page loader.")
                                     else:
@@ -304,7 +315,12 @@ if database_option is not None:
 
                                     try:
                                         pdf_loader = PyPDFLoader(tmp_pdf_path)
-                                        docs = pdf_loader.load_and_split()
+                                        
+                                        Chosen_Parameter = RecursiveCharacterTextSplitter(
+                                            chunk_size=Chunk_size,
+                                            chunk_overlap=Chunk_overlap
+                                        )
+                                        docs = pdf_loader.load_and_split(text_splitter=Chosen_Parameter)
                                         if not docs:
                                             st.error("No documents found in the PDF.")
                                         else:
