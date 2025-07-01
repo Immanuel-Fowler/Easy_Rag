@@ -4,6 +4,8 @@ from barfi.flow import Block, SchemaManager, ComputeEngine
 from barfi.flow.streamlit import st_flow
 import os
 
+
+
 st.set_page_config(page_title="Chatbot", layout="wide", initial_sidebar_state="collapsed")
 
 if st.button("❓ Help", help="Go to help page"):
@@ -73,13 +75,55 @@ log_output_block.add_input(
     name="Input"
 )
 base_blocks=[log_output_block,data_block_local,data_block_remote,rag_block]
-schema_manager = SchemaManager()
-
-if st.button("load schema"):
-    loaded_schema = schema_manager.load_schema('schemas.barfi')
-    barfi_result = st_flow(base_blocks, schema=loaded_schema)
 
 barfi_result = st_flow(base_blocks)
+print(barfi_result)
+schema_manager = SchemaManager()
+
+with st.expander("Schema Management"):
+    load_or_save = st.radio(
+        "Load or Save Schema",
+        ["Save Schema", "Load Schema", "Delete Schema"],
+        horizontal=True,
+    )
+
+    if load_or_save == "Save Schema":
+        schema_name = st.text_input("Schema Name",help="Enter a name for the schema to save it.",)
+        if st.button("Save Schema"):
+            if schema_name not in schema_manager.schema_names:  
+                schema_manager.save_schema(
+                    schema_name=schema_name,
+                    flow_schema = barfi_result.editor_schema
+                )
+            else:
+                st.warning(f"Schema '{schema_name}' already exists. Please choose a different name.")
+
+    elif load_or_save == "Load Schema":
+
+        schema_names = schema_manager.schema_names
+
+        if schema_names:
+            schema_name = st.selectbox("Select Schema to Load", schema_names)
+
+            if st.button("Load Schema"):
+
+                barfi_result = schema_manager.load_schema(schema_name)
+                st.success(f"Schema '{schema_name}' loaded successfully.")
+        else:
+            st.warning("No schemas available to load.")
+
+    elif load_or_save == "Delete Schema":
+        schema_names = schema_manager.schema_names
+        if schema_names:
+            schema_name = st.selectbox("Select Schema to Delete", schema_names)
+            if st.button("Delete Schema"):
+                schema_manager.delete_schema(schema_name)
+                st.success(f"Schema '{schema_name}' deleted successfully.")
+        else:
+            st.warning("No schemas available to delete.")
+
+
 
 # View the schema/result
-st.write(barfi_result)
+#st.write(barfi_result)
+#st.write(schema_manager.schema_names)
