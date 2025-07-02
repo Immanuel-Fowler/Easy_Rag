@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Drawflow RAG Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css" rel="stylesheet">
+    <style>
+    /* ==== Paste your flow.css contents here ==== */
+    .custom-context-menu {
+        background: rgba(30, 32, 40, 0.98);
+        border: 1.5px solid #2de0fc;
+        padding: 10px 0;
+        box-shadow: 0 8px 32px 0 rgba(45,224,252,0.15), 0 1.5px 8px 0 #222;
+        border-radius: 12px;
+        min-width: 160px;
+        z-index: 1001;
+        font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+        animation: menuPop 0.18s cubic-bezier(.4,2,.6,1) both;
+        backdrop-filter: blur(4px);
+    }
+    @keyframes menuPop {
+        0% { transform: scale(0.85); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .context-menu-item {
+        padding: 12px 28px;
+        cursor: pointer;
+        color: #2de0fc;
+        font-size: 1.08em;
+        letter-spacing: 0.03em;
+        transition: background 0.18s, color 0.18s;
+        border-left: 3px solid transparent;
+    }
+    .context-menu-item:hover {
+        background: linear-gradient(90deg, #23243a 60%, #2de0fc22 100%);
+        color: #fff;
+        border-left: 3px solid #2de0fc;
+    }
+    </style>
+</head>
+<body>
+    <div id="drawflow" style="width:100%;height:700px;border:1px solid #ccc;"></div>
+    <div id="context-menu"></div>
+    <script src="https://cdn.jsdelivr.net/npm/drawflow"></script>
+    <script>
+    // ==== Paste your flow.js contents here ====
+    document.addEventListener("DOMContentLoaded", function () {
+        const flow = document.getElementById('drawflow');
+        const menu = document.getElementById('context-menu');
+        // Example block definitions (could be injected from Python)
+        const blockDefs = [
+            {type: "TextInput", label: "Text Input", color: "#2de0fc"},
+            {type: "Retriever", label: "Retriever", color: "#ffb347"},
+            {type: "LLM", label: "LLM", color: "#a259ff"}
+        ];
+
+        // Hide menu on click anywhere
+        document.addEventListener('click', function() {
+            menu.style.display = 'none';
+        });
+
+        // Show custom menu on right-click
+        flow.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+            menu.style.display = 'block';
+            menu.style.position = 'absolute';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.innerHTML = `
+                <div id="custom-context-menu" class="custom-context-menu">
+                    ${blockDefs.map(
+                        block => `<div class="context-menu-item" style="color:${block.color}" onclick="addBlock('${block.type}', '${block.label}', ${event.pageX}, ${event.pageY})">${block.label}</div>`
+                    ).join('')}
+                </div>
+            `;
+        });
+
+        // Add block function (must be global for inline onclick)
+        window.addBlock = function(type, label, x, y) {
+            if (window.editor) {
+                window.editor.addNode(
+                    label,
+                    1, 1, // inputs, outputs (customize as needed)
+                    x - flow.getBoundingClientRect().left,
+                    y - flow.getBoundingClientRect().top,
+                    type,
+                    {},
+                    `<div>${label}</div>`
+                );
+            } else {
+                alert("Editor not initialized!");
+            }
+            menu.style.display = 'none';
+        };
+
+        // Initialize Drawflow editor and expose globally
+        window.editor = new Drawflow(flow);
+        window.editor.start();
+
+        // Expose getFlow for Streamlit
+        window.getFlow = function () {
+            return JSON.stringify(window.editor.export());
+        };
+    });
+    </script>
+</body>
+</html>
