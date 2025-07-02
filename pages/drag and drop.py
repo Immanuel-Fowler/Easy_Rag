@@ -104,11 +104,11 @@ with st.expander("Schema Management"):
 
         if schema_names:
             schema_name = st.selectbox("Select Schema to Load", schema_names)
+            if schema_name:
+                if st.button("Load Schema"):
 
-            if st.button("Load Schema"):
-
-                barfi_result = schema_manager.load_schema(schema_name)
-                st.success(f"Schema '{schema_name}' loaded successfully.")
+                    barfi_result = st_flow(base_blocks,schema_manager.load_schema(schema_name))
+                    st.success(f"Schema '{schema_name}' loaded successfully.")
         else:
             st.warning("No schemas available to load.")
 
