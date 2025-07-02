@@ -29,7 +29,7 @@ with st.expander("**Chatbot Parameters**"):
             Databases.append(entry)
 
     chosen_database = st.selectbox(
-        "Select database",
+        "Select Database",
         Databases,
         index=None,
         placeholder="data_xxxx_xxxx...",
@@ -45,7 +45,7 @@ with st.expander("**Chatbot Parameters**"):
         collections = []
 
     chosen_collection = st.selectbox(
-        "Select collection",
+        "Select Collection",
         collections,
         index=None,
         placeholder="xxxx...",
@@ -53,6 +53,15 @@ with st.expander("**Chatbot Parameters**"):
 
     if chosen_collection is not None:
         embedding_function = OllamaEmbeddings(model=collection_embedding_map.get(chosen_collection))
+
+    llm = st.selectbox(
+        "Select Large Language Model (LLM)",
+        ["llama3","llama3.1", "llama3.2", "llama3.3","deepseek-r1:1.5b"],
+        help="Select the LLM model to use for generating responses",
+    )
+
+    if llm is not None:
+        chosen_llm = llm
 
     mmr_sst_topk = option_menu(
         "RAG search type",
@@ -84,6 +93,8 @@ with st.expander("**Chatbot Parameters**"):
         )
     else:
         search_number_input = None
+
+
 
 st.title("💬 Chatbot")
 
@@ -140,7 +151,7 @@ if prompt := st.chat_input("Ask me anything..."):
                     else:
                         context_text = "\n\n---\n\n".join([r.page_content for r in results])
                         prompt_text = PROMPT_TEMPLATE.format(context=context_text, question=prompt)
-                        model = ChatOllama(model="llama3.1")
+                        model = ChatOllama(model=chosen_llm)
                         # Streaming not supported, so just show the response
                         bot_response = model.invoke(prompt_text).content
                 else:
